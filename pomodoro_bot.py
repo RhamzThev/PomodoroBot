@@ -6,7 +6,8 @@ my_intents = hikari.Intents.GUILDS
 
 bot = lightbulb.BotApp(
     token=secret.Secret.TOKEN,
-    intents=my_intents
+    intents=my_intents,
+    default_enabled_guilds=[995023091065426011]
 )
 
 # START/END COMMAND
