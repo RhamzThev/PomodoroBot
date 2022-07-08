@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Virtual Environment
+pomodoro-bot-env/
+
+
 # Distribution / packaging
 .Python
 build/
