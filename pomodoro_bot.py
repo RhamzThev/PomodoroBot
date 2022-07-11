@@ -2,7 +2,22 @@ import hikari
 import lightbulb
 import secret
 import time
+import threading
+import logging
 from enum import Enum
+
+S_TO_MS = 1000
+
+class PomoStatus(Enum):
+    POMODORO = 25 * 60
+    SHORT_BREAK = 5 * 60
+    LONG_BREAK = 15 * 60
+
+
+class Status(Enum):
+    RUNNING = 1
+    PAUSED = 2
+    STOPPED = 3
 
 my_intents = hikari.Intents.GUILDS
 
@@ -15,13 +30,20 @@ bot = lightbulb.BotApp(
 class Timer:
     def __init__(self) -> None:
         self.status = Status.STOPPED
+        self.pomo_status = PomoStatus.POMODORO
+        self.timer = PomoStatus.POMODORO
 
-class Status(Enum):
-    RUNNING = 1
-    PAUSED = 2
-    STOPPED = 3
+    def countdown(self):
+        while self.timer > 0:
+            time.sleep(1)
+            self.timer -= 1
+            logging.info("There is %d second(s) remaining.", self.timer)
+
+    def time_remaining(self):
+        return self.timer
 
 status = Status.STOPPED
+timer = PomoStatus.POMODORO
 
 # START/STOP COMMAND
 @bot.command
@@ -100,6 +122,5 @@ async def time_remaining(ctx: lightbulb.Context) -> None:
             await ctx.respond("Timer has started!")
 
 # NOTIFICATIONS FOR TIME INTERVALS
-
 
 if __name__ == "__main__": bot.run()
