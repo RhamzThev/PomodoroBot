@@ -31,7 +31,13 @@ class Timer:
     def __init__(self) -> None:
         self.status = Status.STOPPED
         self.pomo_status = PomoStatus.POMODORO
-        self.timer = PomoStatus.POMODORO
+        self.timer = PomoStatus.POMODORO.value
+
+    def get_status(self):
+        return self.status
+
+    def set_status(self, status):
+        self.status = status
 
     def countdown(self):
         while self.timer > 0:
@@ -39,11 +45,10 @@ class Timer:
             self.timer -= 1
             logging.info("There is %d second(s) remaining.", self.timer)
 
-    def time_remaining(self):
+    def get_timer(self):
         return self.timer
 
-status = Status.STOPPED
-timer = PomoStatus.POMODORO
+timer = Timer()
 
 # START/STOP COMMAND
 @bot.command
@@ -51,14 +56,14 @@ timer = PomoStatus.POMODORO
 @lightbulb.implements(lightbulb.SlashCommand)
 
 async def start_timer(ctx: lightbulb.Context) -> None:
-    global status
-    match status:
+    global timer
+    match timer.get_status():
         case Status.RUNNING:
             await ctx.respond("You can't start the timer when it's running.")
         case Status.PAUSED:
             await ctx.respond("You can't start the timer when it's paused. I think `/resume` is what you're looking for.")
         case Status.STOPPED:
-            status = Status.RUNNING
+            timer.set_status(Status.RUNNING)
             await ctx.respond("Timer has started!")
 
 @bot.command
@@ -66,12 +71,12 @@ async def start_timer(ctx: lightbulb.Context) -> None:
 @lightbulb.implements(lightbulb.SlashCommand)
 
 async def Stop_timer(ctx: lightbulb.Context) -> None:
-    global status
-    match status:
+    global timer
+    match timer.get_status():
         case Status.STOPPED:
             await ctx.respond("You can't stop a stopped timer.")
         case _:
-            status = Status.STOPPED
+            timer.set_status(Status.STOPPED)
             await ctx.respond("Timer has been stopped.")
 
 # PAUSE/RESUME COMMAND
@@ -80,12 +85,12 @@ async def Stop_timer(ctx: lightbulb.Context) -> None:
 @lightbulb.implements(lightbulb.SlashCommand)
 
 async def resume_timer(ctx: lightbulb.Context) -> None:
-    global status
-    match status:
+    global timer
+    match timer.get_status():
         case Status.RUNNING:
             await ctx.respond("Timer is already running.")
         case Status.PAUSED:
-            status = Status.RUNNING
+            timer.set_status(Status.RUNNING)
             await ctx.respond("Timer has resumed.")
         case Status.STOPPED:
             await ctx.respond("You can't resume when it's stopped. I think `/start` is what you're looking for.")
@@ -95,10 +100,10 @@ async def resume_timer(ctx: lightbulb.Context) -> None:
 @lightbulb.implements(lightbulb.SlashCommand)
 
 async def pause_timer(ctx: lightbulb.Context) -> None:
-    global status
-    match status:
+    global timer
+    match timer.get_status():
         case Status.RUNNING:
-            status = Status.PAUSED
+            timer.set_status(Status.PAUSED)
             await ctx.respond("Timer is paused.")
         case Status.PAUSED:
             await ctx.respond("Time is already paused.")
@@ -111,16 +116,16 @@ async def pause_timer(ctx: lightbulb.Context) -> None:
 @lightbulb.implements(lightbulb.SlashCommand)
 
 async def time_remaining(ctx: lightbulb.Context) -> None:
-    global status
-    match status:
+    global timer
+    match timer.get_status():
         case Status.RUNNING:
-            await ctx.respond("You can't start the timer when it's running.")
+            await ctx.respond(f"There is { timer.get_timer() } second(s) left.")
         case Status.PAUSED:
-            await ctx.respond("You can't start the timer when it's paused. I think `/resume` is what you're looking for.")
+            await ctx.respond(f"There is { timer.get_timer() } second(s) left.")
         case Status.STOPPED:
-            status = Status.RUNNING
-            await ctx.respond("Timer has started!")
+            await ctx.respond("Timer is not running.")
 
 # NOTIFICATIONS FOR TIME INTERVALS
 
-if __name__ == "__main__": bot.run()
+if __name__ == "__main__":
+    bot.run()
