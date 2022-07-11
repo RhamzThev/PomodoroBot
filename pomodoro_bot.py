@@ -9,9 +9,9 @@ from enum import Enum
 S_TO_MS = 1000
 
 class PomoStatus(Enum):
-    POMODORO = 25 * 60
-    SHORT_BREAK = 5 * 60
-    LONG_BREAK = 15 * 60
+    POMODORO = 3
+    SHORT_BREAK = 1
+    LONG_BREAK = 2
 
 
 class Status(Enum):
@@ -49,14 +49,13 @@ class Timer:
     def countdown(self):
         while self.timer > 0 and self.status != Status.STOPPED:
 
-            if self.running_event:
+            if self.running_event.is_set:
                 time.sleep(1)
                 self.timer -= 1
                 logging.info("There is %d second(s) remaining.", self.timer)
 
 timer = Timer()
 countdown_thread = Thread(target=timer.countdown)
-
 
 # START/STOP COMMAND
 @bot.command
