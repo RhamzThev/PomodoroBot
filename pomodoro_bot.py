@@ -2,7 +2,7 @@ import hikari
 import lightbulb
 import secret
 import time
-import threading
+from threading import Thread, Event
 import logging
 from enum import Enum
 
@@ -32,6 +32,7 @@ class Timer:
         self.status = Status.STOPPED
         self.pomo_status = PomoStatus.POMODORO
         self.timer = PomoStatus.POMODORO.value
+        self.running_event = Event()
 
     def get_status(self):
         return self.status
@@ -39,16 +40,23 @@ class Timer:
     def set_status(self, status):
         self.status = status
 
-    def countdown(self):
-        while self.timer > 0:
-            time.sleep(1)
-            self.timer -= 1
-            logging.info("There is %d second(s) remaining.", self.timer)
+    def get_runnning_event(self):
+        return self.running_event
 
     def get_timer(self):
         return self.timer
 
+    def countdown(self):
+        while self.timer > 0 and self.status != Status.STOPPED:
+
+            if self.running_event:
+                time.sleep(1)
+                self.timer -= 1
+                logging.info("There is %d second(s) remaining.", self.timer)
+
 timer = Timer()
+countdown_thread = Thread(target=timer.countdown)
+
 
 # START/STOP COMMAND
 @bot.command
@@ -64,6 +72,7 @@ async def start_timer(ctx: lightbulb.Context) -> None:
             await ctx.respond("You can't start the timer when it's paused. I think `/resume` is what you're looking for.")
         case Status.STOPPED:
             timer.set_status(Status.RUNNING)
+            countdown_thread.start()
             await ctx.respond("Timer has started!")
 
 @bot.command
@@ -91,6 +100,7 @@ async def resume_timer(ctx: lightbulb.Context) -> None:
             await ctx.respond("Timer is already running.")
         case Status.PAUSED:
             timer.set_status(Status.RUNNING)
+            timer.get_runnning_event().set()
             await ctx.respond("Timer has resumed.")
         case Status.STOPPED:
             await ctx.respond("You can't resume when it's stopped. I think `/start` is what you're looking for.")
@@ -104,6 +114,7 @@ async def pause_timer(ctx: lightbulb.Context) -> None:
     match timer.get_status():
         case Status.RUNNING:
             timer.set_status(Status.PAUSED)
+            timer.get_runnning_event().wait()
             await ctx.respond("Timer is paused.")
         case Status.PAUSED:
             await ctx.respond("Time is already paused.")
