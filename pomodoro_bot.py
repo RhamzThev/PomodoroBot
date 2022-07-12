@@ -190,12 +190,6 @@ async def reset_timer(ctx: lightbulb.Context) -> None:
 
 # NOTIFICATIONS FOR TIME INTERVALS
 
-@bot.listen(hikari.events.Event)
-async def interval(event) -> None:
-    if timer.get_timer() % 5 == 0 and timer.get_status() == Status.RUNNING:
-        return await bot.rest.create_message(996480962877726810, f"There is {timer.get_timer()} second(s) remaining.")
-
-# @bot.create_task(interval, name="Interval Reminder")
 
 if __name__ == "__main__":
     bot.run()
