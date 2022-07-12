@@ -11,9 +11,9 @@ from enum import Enum
 S_TO_MS = 1000
 
 class PomoStatus(Enum):
-    SHORT_BREAK = 5
-    LONG_BREAK = 15
-    POMODORO = 25
+    SHORT_BREAK = 1
+    LONG_BREAK = 3
+    POMODORO = 5
 
 
 class Status(Enum):
@@ -34,6 +34,7 @@ class Timer:
         self.status = Status.STOPPED
         self.pomo_status = PomoStatus.POMODORO
         self.timer = PomoStatus.POMODORO.value
+        self.round = 1
 
         self.thread = None
         self.event = Event()
@@ -71,6 +72,29 @@ class Timer:
         self.status = Status.RUNNING
         self.event.set()
 
+    def reset(self): pass
+
+    def _set_time(self, pomo_status: PomoStatus):
+        self.pomo_status = pomo_status
+        self.timer = pomo_status.value
+
+    def _reset_countdown(self):
+        self.status = Status.STOPPED
+        if self.pomo_status == PomoStatus.POMODORO:
+            # THANKS AYUESHI
+            if self.round % 2 == 1:
+                # SET TO SHORT TIME
+                self._set_time(PomoStatus.SHORT_BREAK)
+                pass
+            else:
+                # SET TO LONG TIME
+                self._set_time(PomoStatus.LONG_BREAK)
+        else:
+            # SET TO POMODORO
+            self._set_time(PomoStatus.POMODORO)
+            # INCREMENT ROUND
+            self.round += 1
+
     def _countdown(self):
         self.event.set()
         while self.timer > 0 and self.status != Status.STOPPED:
@@ -79,6 +103,8 @@ class Timer:
             logging.info("There is %d second(s) remaining.", self.timer)
             time.sleep(1)
             self.timer -= 1
+        self._reset_countdown()
+        
 
 timer = Timer()
 
@@ -157,7 +183,16 @@ async def time_remaining(ctx: lightbulb.Context) -> None:
         case Status.STOPPED:
             await ctx.respond("Timer is not running.")
 
+@bot.command
+@lightbulb.command("reset", "Resets timer.")
+@lightbulb.implements(lightbulb.SlashCommand)
+
+async def reset_timer(ctx: lightbulb.Context) -> None:
+    global timer
+    timer.reset()
+
 # NOTIFICATIONS FOR TIME INTERVALS
+# @bot.
 
 if __name__ == "__main__":
     bot.run()
