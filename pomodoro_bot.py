@@ -1,5 +1,3 @@
-from concurrent.futures import thread
-from telnetlib import STATUS
 import hikari
 import lightbulb
 import secret
@@ -11,9 +9,9 @@ from enum import Enum
 S_TO_MS = 1000
 
 class PomoStatus(Enum):
-    SHORT_BREAK = 1
-    LONG_BREAK = 3
-    POMODORO = 5
+    SHORT_BREAK = 5
+    LONG_BREAK = 15
+    POMODORO = 25
 
 
 class Status(Enum):
@@ -186,13 +184,18 @@ async def time_remaining(ctx: lightbulb.Context) -> None:
 @bot.command
 @lightbulb.command("reset", "Resets timer.")
 @lightbulb.implements(lightbulb.SlashCommand)
-
 async def reset_timer(ctx: lightbulb.Context) -> None:
     global timer
     timer.reset()
 
 # NOTIFICATIONS FOR TIME INTERVALS
-# @bot.
+
+@bot.listen(hikari.events.Event)
+async def interval(event) -> None:
+    if timer.get_timer() % 5 == 0 and timer.get_status() == Status.RUNNING:
+        return await bot.rest.create_message(996480962877726810, f"There is {timer.get_timer()} second(s) remaining.")
+
+# @bot.create_task(interval, name="Interval Reminder")
 
 if __name__ == "__main__":
     bot.run()
