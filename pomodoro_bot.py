@@ -1,3 +1,5 @@
+from concurrent.futures import thread
+from telnetlib import STATUS
 import hikari
 import lightbulb
 import secret
@@ -9,9 +11,9 @@ from enum import Enum
 S_TO_MS = 1000
 
 class PomoStatus(Enum):
-    POMODORO = 3
-    SHORT_BREAK = 1
-    LONG_BREAK = 2
+    SHORT_BREAK = 5
+    LONG_BREAK = 15
+    POMODORO = 25
 
 
 class Status(Enum):
@@ -32,30 +34,53 @@ class Timer:
         self.status = Status.STOPPED
         self.pomo_status = PomoStatus.POMODORO
         self.timer = PomoStatus.POMODORO.value
-        self.running_event = Event()
+
+        self.thread = None
+        self.event = Event()
 
     def get_status(self):
         return self.status
 
-    def set_status(self, status):
-        self.status = status
-
-    def get_runnning_event(self):
-        return self.running_event
-
     def get_timer(self):
         return self.timer
 
-    def countdown(self):
+    # BUSINESS FUNCTIONS
+    def start(self):
+        logging.info("Timer started.")
+
+        self.status = Status.RUNNING
+
+        self.thread = Thread(target=self._countdown)
+
+        self.event.set()
+        self.thread.start()
+
+    def stop(self):
+        logging.info("Timer stopped.")
+        self.status = Status.STOPPED
+        self.event.clear()
+
+
+    def pause(self):
+        logging.info("Timer paused.")
+        self.status = Status.PAUSED
+        self.event.clear()
+
+    def resume(self):
+        logging.info("Timer resume.")
+        self.status = Status.RUNNING
+        self.event.set()
+
+    def _countdown(self):
+        self.event.set()
         while self.timer > 0 and self.status != Status.STOPPED:
 
-            if self.running_event.is_set:
-                time.sleep(1)
-                self.timer -= 1
-                logging.info("There is %d second(s) remaining.", self.timer)
+            self.event.wait()
+            logging.info("There is %d second(s) remaining.", self.timer)
+            time.sleep(1)
+            self.timer -= 1
 
 timer = Timer()
-countdown_thread = Thread(target=timer.countdown)
 
 # START/STOP COMMAND
 @bot.command
@@ -70,8 +95,7 @@ async def start_timer(ctx: lightbulb.Context) -> None:
         case Status.PAUSED:
             await ctx.respond("You can't start the timer when it's paused. I think `/resume` is what you're looking for.")
         case Status.STOPPED:
-            timer.set_status(Status.RUNNING)
-            countdown_thread.start()
+            timer.start()
             await ctx.respond("Timer has started!")
 
 @bot.command
@@ -84,7 +108,7 @@ async def Stop_timer(ctx: lightbulb.Context) -> None:
         case Status.STOPPED:
             await ctx.respond("You can't stop a stopped timer.")
         case _:
-            timer.set_status(Status.STOPPED)
+            timer.stop()
             await ctx.respond("Timer has been stopped.")
 
 # PAUSE/RESUME COMMAND
@@ -98,8 +122,7 @@ async def resume_timer(ctx: lightbulb.Context) -> None:
         case Status.RUNNING:
             await ctx.respond("Timer is already running.")
         case Status.PAUSED:
-            timer.set_status(Status.RUNNING)
-            timer.get_runnning_event().set()
+            timer.resume()
             await ctx.respond("Timer has resumed.")
         case Status.STOPPED:
             await ctx.respond("You can't resume when it's stopped. I think `/start` is what you're looking for.")
@@ -112,8 +135,7 @@ async def pause_timer(ctx: lightbulb.Context) -> None:
     global timer
     match timer.get_status():
         case Status.RUNNING:
-            timer.set_status(Status.PAUSED)
-            timer.get_runnning_event().wait()
+            timer.pause()
             await ctx.respond("Timer is paused.")
         case Status.PAUSED:
             await ctx.respond("Time is already paused.")
