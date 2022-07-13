@@ -1,3 +1,4 @@
+import asyncio
 import hikari
 import lightbulb
 import secret
@@ -44,12 +45,13 @@ class Timer:
         return self.timer
 
     # BUSINESS FUNCTIONS
-    def start(self):
+    def start(self, ctx: lightbulb.Context):
         logging.info("Timer started.")
 
         self.status = Status.RUNNING
 
-        self.thread = Thread(target=self._countdown)
+        self.thread = Thread(target=self._countdown, args=(ctx,))
+        # self.thread = await Thread(target=asyncio.run, )
 
         self.event.set()
         self.thread.start()
@@ -93,12 +95,16 @@ class Timer:
             # INCREMENT ROUND
             self.round += 1
 
-    def _countdown(self):
+    async def _countdown(self, ctx: lightbulb.Context):
         self.event.set()
         while self.timer > 0 and self.status != Status.STOPPED:
 
             self.event.wait()
             logging.info("There is %d second(s) remaining.", self.timer)
+
+            if self.timer % 5 == 0:
+               await ctx.respond(f"There is {self.timer} second(s) left.")
+
             time.sleep(1)
             self.timer -= 1
         self._reset_countdown()
@@ -119,7 +125,7 @@ async def start_timer(ctx: lightbulb.Context) -> None:
         case Status.PAUSED:
             await ctx.respond("You can't start the timer when it's paused. I think `/resume` is what you're looking for.")
         case Status.STOPPED:
-            timer.start()
+            timer.start(ctx)
             await ctx.respond("Timer has started!")
 
 @bot.command
@@ -187,9 +193,6 @@ async def time_remaining(ctx: lightbulb.Context) -> None:
 async def reset_timer(ctx: lightbulb.Context) -> None:
     global timer
     timer.reset()
-
-# NOTIFICATIONS FOR TIME INTERVALS
-
 
 if __name__ == "__main__":
     bot.run()
