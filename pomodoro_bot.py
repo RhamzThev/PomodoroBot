@@ -51,7 +51,6 @@ class Timer:
         self.status = Status.RUNNING
 
         self.thread = Thread(target=self._countdown, args=(ctx,))
-        # self.thread = await Thread(target=asyncio.run, )
 
         self.event.set()
         self.thread.start()
@@ -95,7 +94,7 @@ class Timer:
             # INCREMENT ROUND
             self.round += 1
 
-    async def _countdown(self, ctx: lightbulb.Context):
+    def _countdown(self, ctx: lightbulb.Context):
         self.event.set()
         while self.timer > 0 and self.status != Status.STOPPED:
 
@@ -103,7 +102,7 @@ class Timer:
             logging.info("There is %d second(s) remaining.", self.timer)
 
             if self.timer % 5 == 0:
-               await ctx.respond(f"There is {self.timer} second(s) left.")
+                ctx.respond(f"There is {self.timer} second(s) left.")
 
             time.sleep(1)
             self.timer -= 1
