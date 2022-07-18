@@ -1,5 +1,6 @@
-import asyncio
+import attr
 import hikari
+from hikari.events import MessageCreateEvent
 import lightbulb
 import secret
 import time
@@ -7,12 +8,12 @@ from threading import Thread, Event
 import logging
 from enum import Enum
 
-S_TO_MS = 1000
+MIN_TO_SEC = 60
 
 class PomoStatus(Enum):
-    SHORT_BREAK = 5
-    LONG_BREAK = 15
-    POMODORO = 25
+    SHORT_BREAK = 5 * MIN_TO_SEC
+    LONG_BREAK = 15 * MIN_TO_SEC
+    POMODORO = 25 * MIN_TO_SEC
 
 
 class Status(Enum):
@@ -27,6 +28,10 @@ bot = lightbulb.BotApp(
     intents=my_intents,
     default_enabled_guilds=[995023091065426011]
 )
+
+# @attr.define()
+# class TimeIsUpEvent(Event):
+
 
 class Timer:
     def __init__(self) -> None:
@@ -45,12 +50,12 @@ class Timer:
         return self.timer
 
     # BUSINESS FUNCTIONS
-    def start(self, ctx: lightbulb.Context):
+    def start(self):
         logging.info("Timer started.")
 
         self.status = Status.RUNNING
 
-        self.thread = Thread(target=self._countdown, args=(ctx,))
+        self.thread = Thread(target=self._countdown)
 
         self.event.set()
         self.thread.start()
@@ -77,6 +82,12 @@ class Timer:
         self.pomo_status = pomo_status
         self.timer = pomo_status.value
 
+    def get_format_timer(self):
+        minute_format = int(self.timer / 60)
+        second_format = self.timer % 60
+
+        return "{:02d}".format(minute_format) + ":" + "{:02d}".format(second_format)
+
     def _reset_countdown(self):
         self.status = Status.STOPPED
         if self.pomo_status == PomoStatus.POMODORO:
@@ -94,21 +105,17 @@ class Timer:
             # INCREMENT ROUND
             self.round += 1
 
-    def _countdown(self, ctx: lightbulb.Context):
+    def _countdown(self):
         self.event.set()
         while self.timer > 0 and self.status != Status.STOPPED:
 
             self.event.wait()
-            logging.info("There is %d second(s) remaining.", self.timer)
-
-            if self.timer % 5 == 0:
-                ctx.respond(f"There is {self.timer} second(s) left.")
+            logging.info("There is %s second(s) remaining.", self.get_format_timer())
 
             time.sleep(1)
             self.timer -= 1
         self._reset_countdown()
         
-
 timer = Timer()
 
 # START/STOP COMMAND
@@ -124,14 +131,14 @@ async def start_timer(ctx: lightbulb.Context) -> None:
         case Status.PAUSED:
             await ctx.respond("You can't start the timer when it's paused. I think `/resume` is what you're looking for.")
         case Status.STOPPED:
-            timer.start(ctx)
+            timer.start()
             await ctx.respond("Timer has started!")
 
 @bot.command
 @lightbulb.command("stop", "Stops the pomodoro timer.")
 @lightbulb.implements(lightbulb.SlashCommand)
 
-async def Stop_timer(ctx: lightbulb.Context) -> None:
+async def stop_timer(ctx: lightbulb.Context) -> None:
     global timer
     match timer.get_status():
         case Status.STOPPED:
@@ -180,9 +187,9 @@ async def time_remaining(ctx: lightbulb.Context) -> None:
     global timer
     match timer.get_status():
         case Status.RUNNING:
-            await ctx.respond(f"There is { timer.get_timer() } second(s) left.")
+            await ctx.respond(f"There is { timer.get_format_timer() } second(s) left.")
         case Status.PAUSED:
-            await ctx.respond(f"There is { timer.get_timer() } second(s) left.")
+            await ctx.respond(f"There is { timer.get_format_timer() } second(s) left.")
         case Status.STOPPED:
             await ctx.respond("Timer is not running.")
 
